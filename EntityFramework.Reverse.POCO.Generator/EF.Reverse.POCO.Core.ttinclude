@@ -80,7 +80,7 @@
         private string _configFilePath = "";
         Func<string, string, string> TableRename;
         Func<string, string, string> StoredProcedureRename;
-		Func<string, string, string> ReverseNavigationRename;
+		Func<string, string, string, string> ReverseNavigationRename;
         Func<Column, Table, Column> UpdateColumn;
         Func<ForeignKey, ForeignKey> ForeignKeyFilter;
         Func<string, string, short, string> ForeignKeyName;
@@ -1224,7 +1224,7 @@
             public abstract Tables ReadSchema(Regex schemaFilterExclude, Regex tableFilterExclude, Regex columnFilterExclude, bool useCamelCase, bool prependSchemaName, CommentsStyle includeComments, bool includeViews, CommentsStyle includeExtendedPropertyComments, Func<string, string, string> tableRename, Func<Column, Table, Column> updateColumn);
             public abstract List<StoredProcedure> ReadStoredProcs(Regex SchemaFilterExclude, Regex storedProcedureFilterExclude, bool useCamelCase, bool prependSchemaName , Func<string, string, string> StoredProcedureRename, bool includeTableValuedFunctions);
             public abstract List<ForeignKey> ReadForeignKeys(Func<string, string, string> tableRename, Func<ForeignKey, ForeignKey> foreignKeyFilter);
-            public abstract void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename);
+            public abstract void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string, string> ReverseNavigationRename);
             public abstract void IdentifyForeignKeys(List<ForeignKey> fkList, Tables tables);
             public abstract void ReadUniqueIndexes(Tables tables);
             public abstract void ReadExtendedProperties(Tables tables);
@@ -2056,7 +2056,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public override void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
+            public override void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string, string> ReverseNavigationRename)
             {
                 var constraints = fkList.Select(x => x.ConstraintName).Distinct();
                 foreach (var constraint in constraints)
@@ -2116,7 +2116,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                         mapKey = string.Format("\"{0}\"", fkCol.col.Name);
                     }
 
-                    fkPropName = ReverseNavigationRename(pkTableHumanCase, fkPropName);
+                    fkPropName = ReverseNavigationRename(pkTableHumanCase, fkTable.NameHumanCase, fkPropName);
 
                     fkCol.col.ConfigFk.Add(string.Format("{0};{1}", 
 										   GetRelationship(relationship, fkCol.col, pkCol, pkPropName, fkPropName, manyToManyMapping, mapKey, foreignKey.CascadeOnDelete), 
@@ -2753,7 +2753,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public void IdentifyMappingTable(List<ForeignKey> fkList, Tables tables, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
+            public void IdentifyMappingTable(List<ForeignKey> fkList, Tables tables, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string, string> ReverseNavigationRename)
             {
                 IsMapping = false;
 
@@ -2795,8 +2795,8 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 var leftPropName  = leftTable.GetUniqueColumnName(rightTable.NameHumanCase, right, useCamelCase, checkForFkNameClashes, false, ForeignKeyName);
                 var rightPropName = rightTable.GetUniqueColumnName(leftTable.NameHumanCase, left, useCamelCase, checkForFkNameClashes, false, ForeignKeyName);
 
-                leftPropName = ReverseNavigationRename(leftTable.NameHumanCase, leftPropName);
-				rightPropName = ReverseNavigationRename(rightTable.NameHumanCase, rightPropName);
+                leftPropName = ReverseNavigationRename(leftTable.NameHumanCase, rightTable.NameHumanCase, leftPropName);
+				rightPropName = ReverseNavigationRename(rightTable.NameHumanCase, leftTable.NameHumanCase, rightPropName);
 				
 				leftTable.AddMappingConfiguration(left, right, useCamelCase, leftPropName, rightPropName, isSqlCE);
 
@@ -2823,7 +2823,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public void IdentifyMappingTables(List<ForeignKey> fkList, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
+            public void IdentifyMappingTables(List<ForeignKey> fkList, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string, string> ReverseNavigationRename)
             {
                 foreach(var tbl in this.Where(x => x.HasForeignKey))
                 {
