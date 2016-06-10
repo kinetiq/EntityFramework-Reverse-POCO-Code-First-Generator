@@ -31,7 +31,7 @@
             InSummaryBlock,
             AtEndOfField
         };
-
+        
         // Settings - edit these in the main <name>.tt file *******************************************************************************
         string ConnectionStringName = "";
         bool IncludeViews = true;
@@ -80,6 +80,7 @@
         private string _configFilePath = "";
         Func<string, string, string> TableRename;
         Func<string, string, string> StoredProcedureRename;
+		Func<string, string, string> ReverseNavigationRename;
         Func<Column, Table, Column> UpdateColumn;
         Func<ForeignKey, ForeignKey> ForeignKeyFilter;
         Func<string, string, short, string> ForeignKeyName;
@@ -91,7 +92,7 @@
         List<EnumDefinition> EnumsDefinitions = new List<EnumDefinition>();
 
         string CodeGeneratedAttribute = "[System.CodeDom.Compiler.GeneratedCode(\"EF.Reverse.POCO.Generator\", \"2.20.0.0\")]";
-
+        
         // Settings to allow selective code generation
         [Flags]
         private enum Elements
@@ -123,23 +124,23 @@
 
         static readonly List<string> NotNullable = new List<string>
         {
-            "string",
-            "byte[]",
-            "datatable",
-            "system.data.datatable",
-            "object",
-            "microsoft.sqlserver.types.sqlgeography",
+            "string", 
+            "byte[]", 
+            "datatable", 
+            "system.data.datatable", 
+            "object", 
+            "microsoft.sqlserver.types.sqlgeography", 
             "microsoft.sqlserver.types.sqlgeometry",
             "system.data.entity.spatial.dbgeography",
             "system.data.entity.spatial.dbgeometry",
             "system.data.entity.hierarchy.hierarchyid"
         };
-
+        
         static readonly List<string> ReservedKeywords = new List<string>
         {
             "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char",
             "checked", "class", "const", "continue", "decimal", "default", "delegate", "do",
-            "double", "else", "enum", "event", "explicit", "extern", "false", "finally", "fixed",
+            "double", "else", "enum", "event", "explicit", "extern", "false", "finally", "fixed", 
             "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface",
             "internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator",
             "out", "override", "params", "private", "protected", "public", "readonly", "ref",
@@ -171,7 +172,7 @@
             }
             if (replacedCharacter)
                 str = sb.ToString();
-
+            
             // Remove non alphanumerics
             str = RxCleanUp.Replace(str, "");
             if(char.IsDigit(str[0]))
@@ -269,7 +270,7 @@
 
             return dte;
         }
-
+        
         public EnvDTE.Solution GetSolution()
         {
             return GetDTE().Solution;
@@ -294,7 +295,7 @@
         {
             if (project.ProjectItems == null)
                 yield break;
-
+            
             foreach (EnvDTE.ProjectItem projectItem in project.ProjectItems)
             {
                 var subProject = projectItem.SubProject;
@@ -327,7 +328,7 @@
             var item = dte.Solution.FindProjectItem(Host.TemplateFile);
             if (item != null && item.ContainingProject != null)
                 return item.ContainingProject;
-
+            
             throw new InvalidOperationException("Error in GetCurrentProject(). Unable to find project.");
         }
 
@@ -352,7 +353,7 @@
         private List<string> GetConfigPaths()
         {
             var paths = new List<string>();
-
+            
             // Local project first
             EnvDTE.Project project = GetCurrentProject();
             paths.AddRange(GetConfigPathsInProject(project));
@@ -441,7 +442,7 @@
             // Fall back to default
             var project = GetCurrentProject();
             return Path.GetDirectoryName(project.FileName) + "\\App_Data\\";
-        }
+        }        
 
         private static string ZapPassword(string connectionString)
         {
@@ -507,12 +508,12 @@
             }
             return false;
         }
-
+        
         private Tables LoadTables(DbProviderFactory factory)
         {
-            if(factory == null || !(ElementsToGenerate.HasFlag(Elements.Poco) ||
-                                    ElementsToGenerate.HasFlag(Elements.Context) ||
-                                    ElementsToGenerate.HasFlag(Elements.UnitOfWork) ||
+            if(factory == null || !(ElementsToGenerate.HasFlag(Elements.Poco) || 
+                                    ElementsToGenerate.HasFlag(Elements.Context) || 
+                                    ElementsToGenerate.HasFlag(Elements.UnitOfWork) || 
                                     ElementsToGenerate.HasFlag(Elements.PocoConfiguration)))
                 return new Tables();
 
@@ -549,16 +550,16 @@
                     // Must be done in this order
                     var fkList = reader.ReadForeignKeys(TableRename, ForeignKeyFilter);
                     reader.IdentifyForeignKeys(fkList, tables);
-                    reader.ProcessForeignKeys(fkList, tables, UseCamelCase, PrependSchemaName, CollectionType, true, IncludeComments, ForeignKeyName);
+                    reader.ProcessForeignKeys(fkList, tables, UseCamelCase, PrependSchemaName, CollectionType, true, IncludeComments, ForeignKeyName, ReverseNavigationRename);
 
                     if(UseMappingTables)
-                        tables.IdentifyMappingTables(fkList, UseCamelCase, CollectionType, true, IncludeComments, IsSqlCe, ForeignKeyName);
+                        tables.IdentifyMappingTables(fkList, UseCamelCase, CollectionType, true, IncludeComments, IsSqlCe, ForeignKeyName, ReverseNavigationRename);
 
                     tables.ResetNavigationProperties();
-
-                    reader.ProcessForeignKeys(fkList, tables, UseCamelCase, PrependSchemaName, CollectionType, false, IncludeComments, ForeignKeyName);
+                    
+                    reader.ProcessForeignKeys(fkList, tables, UseCamelCase, PrependSchemaName, CollectionType, false, IncludeComments, ForeignKeyName, ReverseNavigationRename);
                     if(UseMappingTables)
-                        tables.IdentifyMappingTables(fkList, UseCamelCase, CollectionType, false, IncludeComments, IsSqlCe, ForeignKeyName);
+                        tables.IdentifyMappingTables(fkList, UseCamelCase, CollectionType, false, IncludeComments, IsSqlCe, ForeignKeyName, ReverseNavigationRename);
 
                     foreach(var t in tables)
                         t.SetHasPrimaryKey();
@@ -580,7 +581,7 @@
             }
         }
 
-
+        
         private List<StoredProcedure> LoadStoredProcs(DbProviderFactory factory)
         {
             if(factory == null || !IncludeStoredProcedures)
@@ -685,7 +686,7 @@
             // n:n
             return Relationship.ManyToMany;
         }
-
+        
         public static Relationship CalcRelationshipSingle(Table pkTable, Table fkTable, Column fkCol, Column pkCol)
         {
             bool fkTableSinglePrimaryKey = (fkTable.PrimaryKeys.Count() == 1);
@@ -732,7 +733,7 @@
             public int Ordinal;
             public int PrimaryKeyOrdinal;
             public string ExtendedProperty;
-            public string SummaryComments;
+			public string SummaryComments;
             public string UniqueIndexName;
 
             public bool IsIdentity;
@@ -787,11 +788,11 @@
                 }
                 if (includeExtendedPropertyComments == CommentsStyle.InSummaryBlock && !string.IsNullOrEmpty(ExtendedProperty))
                 {
-                    if (string.IsNullOrEmpty(SummaryComments))
+					if (string.IsNullOrEmpty(SummaryComments))
                         SummaryComments = ExtendedProperty;
                     else
                         SummaryComments += ". " + ExtendedProperty;
-                }
+				}
 
                 if (includeExtendedPropertyComments == CommentsStyle.AtEndOfField && !string.IsNullOrEmpty(ExtendedProperty))
                 {
@@ -1051,7 +1052,7 @@
             InOut,
             Out
         };
-
+    
         public class StoredProcedureParameter
         {
             public int Ordinal;
@@ -1087,7 +1088,7 @@
             {
                 try
                 {
-                    if(PluralizationService == null)
+                    if(PluralizationService == null) 
                         return word;
 
                     if (word.Contains('_'))
@@ -1114,7 +1115,7 @@
             {
                 try
                 {
-                    if(PluralizationService == null)
+                    if(PluralizationService == null) 
                         return word;
 
                     if (word.Contains('_'))
@@ -1123,7 +1124,7 @@
                         parts[parts.Length - 1] = PluralizationService.Singularize(parts[parts.Length - 1]); // Singularize just the last word
                         return string.Join("_", parts);
                     }
-
+                    
                     return PluralizationService.Singularize(word);
                 }
                 catch (Exception)
@@ -1139,7 +1140,7 @@
             /// <returns></returns>
             public static string ToTitleCase(string word)
             {
-                string s = Regex.Replace(ToHumanCase(AddUnderscores(word)), @"\b([a-z])", match => match.Captures[0].Value.ToUpperInvariant());
+                string s = Regex.Replace(ToHumanCase(AddUnderscores(word)), @"\b([a-z])", match => match.Captures[0].Value.ToUpper());
                 bool digit = false;
                 string a = string.Empty;
                 foreach(char c in s)
@@ -1152,7 +1153,7 @@
                     else
                     {
                         if(digit && Char.IsLower(c))
-                            a = a + Char.ToUpperInvariant(c);
+                            a = a + Char.ToUpper(c);
                         else
                             a = a + c;
                         digit = false;
@@ -1180,7 +1181,7 @@
             public static string AddUnderscores(string pascalCasedWord)
             {
                 return
-                    Regex.Replace(Regex.Replace(Regex.Replace(pascalCasedWord, @"([A-Z]+)([A-Z][a-z])", "$1_$2"), @"([a-z\d])([A-Z])", "$1_$2"), @"[-\s]", "_").ToLowerInvariant();
+                    Regex.Replace(Regex.Replace(Regex.Replace(pascalCasedWord, @"([A-Z]+)([A-Z][a-z])", "$1_$2"), @"([a-z\d])([A-Z])", "$1_$2"), @"[-\s]", "_").ToLower();
             }
 
             /// <summary>
@@ -1190,9 +1191,9 @@
             /// <returns></returns>
             public static string MakeInitialCaps(string word)
             {
-                return String.Concat(word.Substring(0, 1).ToUpperInvariant(), word.Substring(1).ToLowerInvariant());
+                return String.Concat(word.Substring(0, 1).ToUpper(), word.Substring(1).ToLower());
             }
-
+            
             /// <summary>
             /// Makes the initial character lowercase.
             /// </summary>
@@ -1200,7 +1201,7 @@
             /// <returns></returns>
             public static string MakeInitialLower(string word)
             {
-                return String.Concat(word.Substring(0, 1).ToLowerInvariant(), word.Substring(1));
+                return String.Concat(word.Substring(0, 1).ToLower(), word.Substring(1));
             }
         }
 
@@ -1223,7 +1224,7 @@
             public abstract Tables ReadSchema(Regex schemaFilterExclude, Regex tableFilterExclude, Regex columnFilterExclude, bool useCamelCase, bool prependSchemaName, CommentsStyle includeComments, bool includeViews, CommentsStyle includeExtendedPropertyComments, Func<string, string, string> tableRename, Func<Column, Table, Column> updateColumn);
             public abstract List<StoredProcedure> ReadStoredProcs(Regex SchemaFilterExclude, Regex storedProcedureFilterExclude, bool useCamelCase, bool prependSchemaName , Func<string, string, string> StoredProcedureRename, bool includeTableValuedFunctions);
             public abstract List<ForeignKey> ReadForeignKeys(Func<string, string, string> tableRename, Func<ForeignKey, ForeignKey> foreignKeyFilter);
-            public abstract void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName);
+            public abstract void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename);
             public abstract void IdentifyForeignKeys(List<ForeignKey> fkList, Tables tables);
             public abstract void ReadUniqueIndexes(Tables tables);
             public abstract void ReadExtendedProperties(Tables tables);
@@ -1584,7 +1585,7 @@ WHERE   t.is_ms_shipped = 0
 
             private bool IncludeQueryTraceOn9481Flag;
 
-            public SqlServerSchemaReader(DbConnection connection, DbProviderFactory factory, bool includeQueryTraceOn9481Flag)
+            public SqlServerSchemaReader(DbConnection connection, DbProviderFactory factory, bool includeQueryTraceOn9481Flag) 
                 : base(connection, factory)
             {
                 IncludeQueryTraceOn9481Flag = includeQueryTraceOn9481Flag;
@@ -1593,7 +1594,7 @@ WHERE   t.is_ms_shipped = 0
             private string IncludeQueryTraceOn9481()
             {
                 if (IncludeQueryTraceOn9481Flag)
-                    return @"
+                    return @" 
 OPTION (QUERYTRACEON 9481)";
                 return string.Empty;
             }
@@ -1639,7 +1640,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 var result = new Tables();
                 if(Cmd == null)
                     return result;
-
+                
                 Cmd.CommandText = TableSQL + IncludeQueryTraceOn9481();
                 if (Cmd.GetType().Name == "SqlCeCommand")
                     Cmd.CommandText = TableSQLCE;
@@ -1729,7 +1730,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                     ReadExtendedProperties(result);
 
                 ReadUniqueIndexes(result);
-
+                
                 foreach(Table tbl in result)
                 {
                     tbl.Columns.ForEach(x => x.SetupEntityAndConfig(includeComments, includeExtendedPropertyComments));
@@ -1763,7 +1764,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                         string constraintName = rdr["Constraint_Name"].ToString();
                         int ordinal = (int) rdr["ORDINAL_POSITION"];
                         bool cascadeOnDelete = ((int) rdr["CascadeOnDelete"]) == 1;
-
+                        
                         string fkTableNameFiltered = tableRename(fkTableName, fkSchema);
                         string pkTableNameFiltered = tableRename(pkTableName, pkSchema);
 
@@ -1775,7 +1776,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                             fkList.Add(filteredFk);
                     }
                 }
-
+                
                 return fkList;
             }
 
@@ -1904,13 +1905,13 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                     }
                 }
             }
-
+            
             public override List<StoredProcedure> ReadStoredProcs(Regex schemaFilterExclude, Regex storedProcedureFilterExclude, bool useCamelCase, bool prependSchemaName , Func<string, string, string> StoredProcedureRename, bool includeTableValuedFunctions)
             {
                 var result = new List<StoredProcedure>();
                 if(Cmd == null)
                     return result;
-
+            
                 if (Cmd.GetType().Name == "SqlCeCommand")
                     return result;
 
@@ -1954,9 +1955,9 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                             };
                             if((string.Compare(schema, "dbo", StringComparison.OrdinalIgnoreCase) != 0) && prependSchemaName)
                                 sp.NameHumanCase = schema + "_" + sp.NameHumanCase;
-
+                            
                             sp.NameHumanCase = StoredProcedureRename(sp.NameHumanCase, schema);
-
+                            
                             result.Add(sp);
                         }
 
@@ -2025,7 +2026,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
                         if(proc.Parameters.Count > 0)
                             sb.Length -= 2;
-
+    
                         sb.AppendLine(";");
                     }
                     sb.AppendLine("SET FMTONLY OFF; SET FMTONLY OFF;");
@@ -2055,7 +2056,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public override void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName)
+            public override void ProcessForeignKeys(List<ForeignKey> fkList, Tables tables, bool useCamelCase, bool prependSchemaName, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
             {
                 var constraints = fkList.Select(x => x.ConstraintName).Distinct();
                 foreach (var constraint in constraints)
@@ -2074,7 +2075,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
                     var fkCols = foreignKeys.Select(x => new
                         {
-                            fkOrdinal = x.Ordinal,
+                            fkOrdinal = x.Ordinal, 
                             col = fkTable.Columns.Find(n => string.Equals(n.Name, x.FkColumn, StringComparison.InvariantCultureIgnoreCase))
                         })
                         .Where(x => x != null)
@@ -2115,8 +2116,12 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                         mapKey = string.Format("\"{0}\"", fkCol.col.Name);
                     }
 
-                    fkCol.col.ConfigFk.Add(string.Format("{0};{1}", GetRelationship(relationship, fkCol.col, pkCol, pkPropName, fkPropName, manyToManyMapping, mapKey, foreignKey.CascadeOnDelete), includeComments != CommentsStyle.None ? " // " + foreignKey.ConstraintName : string.Empty));
-                    pkTable.AddReverseNavigation(relationship, pkTableHumanCase, fkTable, fkPropName, string.Format("{0}.{1}", fkTable.Name, foreignKey.ConstraintName), collectionType, includeComments);
+                    fkPropName = ReverseNavigationRename(pkTableHumanCase, fkPropName);
+
+                    fkCol.col.ConfigFk.Add(string.Format("{0};{1}", 
+										   GetRelationship(relationship, fkCol.col, pkCol, pkPropName, fkPropName, manyToManyMapping, mapKey, foreignKey.CascadeOnDelete), 
+										   includeComments != CommentsStyle.None ? " // " + foreignKey.ConstraintName : string.Empty));
+                    pkTable.AddReverseNavigation(relationship, fkTable, fkPropName, string.Format("{0}.{1}", fkTable.Name, foreignKey.ConstraintName), collectionType, includeComments);
                 }
             }
 
@@ -2146,9 +2151,9 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
             private static string GetRelationship(Relationship relationship, Column fkCol, Column pkCol, string pkPropName, string fkPropName, string manyToManyMapping, string mapKey, bool cascadeOnDelete)
             {
-                return string.Format("Has{0}(a => a.{1}){2}{3}",
-                    GetHasMethod(relationship, fkCol, pkCol),
-                    pkPropName,
+                return string.Format("Has{0}(a => a.{1}){2}{3}", 
+                    GetHasMethod(relationship, fkCol, pkCol), 
+                    pkPropName, 
                     GetWithMethod(relationship, fkCol, fkPropName, manyToManyMapping, mapKey),
                     cascadeOnDelete ? string.Empty: ".WillCascadeOnDelete(false)");
             }
@@ -2542,7 +2547,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
             public string Column;
             public int ColumnCount;
         }
-
+        
         public class Table
         {
             public string Name;
@@ -2584,7 +2589,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
             {
                 HasPrimaryKey = Columns.Any(x => x.IsPrimaryKey);
             }
-
+            
             public IEnumerable<Column> PrimaryKeys
             {
                 get
@@ -2689,7 +2694,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
                     if (ReverseNavigationUniquePropName.Contains(col))
                         continue;
-
+                    
                     ReverseNavigationUniquePropName.Add(col);
                     return col;
                 }
@@ -2698,7 +2703,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 return ForeignKeyName(tableNameHumanCase, fkName, 6);
             }
 
-            public void AddReverseNavigation(Relationship relationship, string fkName, Table fkTable, string propName, string constraint, string collectionType, CommentsStyle includeComments)
+            public void AddReverseNavigation(Relationship relationship, Table fkTable, string propName, string constraint, string collectionType, CommentsStyle includeComments)
             {
                 switch (relationship)
                 {
@@ -2719,7 +2724,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                         ReverseNavigationProperty.Add(string.Format("public virtual System.Collections.Generic.ICollection<{0}> {1} {{ get; set; }}{2}", fkTable.NameHumanCase, propName, includeComments != CommentsStyle.None ? " // Many to many mapping" : string.Empty));
                         ReverseNavigationCtor.Add(string.Format("{0} = new {1}<{2}>();", propName, collectionType, fkTable.NameHumanCase));
                         break;
-
+                    
                     default:
                         throw new ArgumentOutOfRangeException("relationship");
                 }
@@ -2727,7 +2732,7 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
             public void AddMappingConfiguration(ForeignKey left, ForeignKey right, bool useCamelCase, string leftPropName, string rightPropName, bool isSqlCE)
             {
-                MappingConfiguration.Add(string.Format(@"HasMany(t => t.{0}).WithMany(t => t.{1}).Map(m =>
+                MappingConfiguration.Add(string.Format(@"HasMany(t => t.{0}).WithMany(t => t.{1}).Map(m => 
             {{
                 m.ToTable(""{2}""{5});
                 m.MapLeftKey(""{3}"");
@@ -2748,16 +2753,16 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public void IdentifyMappingTable(List<ForeignKey> fkList, Tables tables, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName)
+            public void IdentifyMappingTable(List<ForeignKey> fkList, Tables tables, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
             {
                 IsMapping = false;
 
                 var nonReadOnlyColumns = Columns.Where(c => !c.IsIdentity && !c.IsRowVersion && !c.IsStoreGenerated && !c.Hidden).ToList();
-
+                
                 // Ignoring read-only columns, it must have only 2 columns to be a mapping table
                 if (nonReadOnlyColumns.Count != 2)
                     return;
-
+                
                 // Must have 2 primary keys
                 if (nonReadOnlyColumns.Count(x => x.IsPrimaryKey) != 2)
                     return;
@@ -2771,14 +2776,14 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                                                String.Compare(x.FkTableName, Name, StringComparison.OrdinalIgnoreCase) == 0 &&
                                                String.Compare(x.FkSchema, Schema, StringComparison.OrdinalIgnoreCase) == 0)
                                         .ToList();
-
+                
                 // Each column must have a foreign key, therefore check column and foreign key counts match
                 if (foreignKeys.Select(x => x.FkColumn).Distinct().Count() != 2)
                     return;
 
                 ForeignKey left  = foreignKeys[0];
                 ForeignKey right = foreignKeys[1];
-
+                
                 Table leftTable = tables.GetTable(left.PkTableName, left.PkSchema);
                 if (leftTable == null)
                     return;
@@ -2789,11 +2794,15 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
 
                 var leftPropName  = leftTable.GetUniqueColumnName(rightTable.NameHumanCase, right, useCamelCase, checkForFkNameClashes, false, ForeignKeyName);
                 var rightPropName = rightTable.GetUniqueColumnName(leftTable.NameHumanCase, left, useCamelCase, checkForFkNameClashes, false, ForeignKeyName);
-                leftTable.AddMappingConfiguration(left, right, useCamelCase, leftPropName, rightPropName, isSqlCE);
+
+                leftPropName = ReverseNavigationRename(leftTable.NameHumanCase, leftPropName);
+				rightPropName = ReverseNavigationRename(rightTable.NameHumanCase, rightPropName);
+				
+				leftTable.AddMappingConfiguration(left, right, useCamelCase, leftPropName, rightPropName, isSqlCE);
 
                 IsMapping = true;
-                rightTable.AddReverseNavigation(Relationship.ManyToMany, rightTable.NameHumanCase, leftTable, rightPropName, null, collectionType, includeComments);
-                leftTable .AddReverseNavigation(Relationship.ManyToMany, leftTable.NameHumanCase, rightTable, leftPropName, null, collectionType, includeComments);
+                rightTable.AddReverseNavigation(Relationship.ManyToMany, leftTable, rightPropName, null, collectionType, includeComments);
+                leftTable .AddReverseNavigation(Relationship.ManyToMany, rightTable, leftPropName, null, collectionType, includeComments);
             }
         }
 
@@ -2801,8 +2810,8 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
         {
             public Table GetTable(string tableName, string schema)
             {
-                return this.SingleOrDefault(x =>
-                    String.Compare(x.Name, tableName, StringComparison.OrdinalIgnoreCase) == 0 &&
+                return this.SingleOrDefault(x => 
+                    String.Compare(x.Name, tableName, StringComparison.OrdinalIgnoreCase) == 0 && 
                     String.Compare(x.Schema, schema, StringComparison.OrdinalIgnoreCase) == 0);
             }
 
@@ -2814,11 +2823,11 @@ SELECT  SERVERPROPERTY('Edition') AS Edition,
                 }
             }
 
-            public void IdentifyMappingTables(List<ForeignKey> fkList, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName)
+            public void IdentifyMappingTables(List<ForeignKey> fkList, bool useCamelCase, string collectionType, bool checkForFkNameClashes, CommentsStyle includeComments, bool isSqlCE, Func<string, string, short, string> ForeignKeyName, Func<string, string, string> ReverseNavigationRename)
             {
                 foreach(var tbl in this.Where(x => x.HasForeignKey))
                 {
-                    tbl.IdentifyMappingTable(fkList, this, useCamelCase, collectionType, checkForFkNameClashes, includeComments, isSqlCE, ForeignKeyName);
+                    tbl.IdentifyMappingTable(fkList, this, useCamelCase, collectionType, checkForFkNameClashes, includeComments, isSqlCE, ForeignKeyName, ReverseNavigationRename);
                 }
             }
 

@@ -194,6 +194,31 @@
     //StoredProcedureReturnTypes.Add("SalesByYear", "SummaryOfSalesByYear");
 
 
+
+    // ReverseNavigationRename renaming ************************************************************************************************************
+    // Use the following function to rename reverse navigation properties. For instance, 
+	// if your Customers POCO has this reverse navigation property:
+	//
+	// public virtual System.Collections.Generic.ICollection<Visit> Visits { get; set; } 
+	//
+	// ...But you want this:
+	//
+	//public virtual System.Collections.Generic.ICollection<Visit> ProfitableVisits { get; set; } 
+	//
+	// This example below will make that happen.
+
+    // Example:
+	/*ReverseNavigationRename = (table, propName) =>
+    {
+        if (table == "Customers" && propName == "Visits")
+            return "ProfitableVisits";
+
+        return propName;
+    };*/
+
+	// By default, do nothing.
+    ReverseNavigationRename = (table, propName) => propName;
+
     // WCF ********************************************************************************************************************************
     // This is only intended as a helper, to get you started creating WCF contracts, and to save a lot of typing.
     AddWcfDataAttributes = false;
